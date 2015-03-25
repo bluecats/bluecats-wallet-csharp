@@ -9,10 +9,10 @@ tender merchantID amount - tender card
 cancel [transactionID] - cancel transaction   
 datasource - print data source   
 
-####Adding Merchants
-Models/Merchant.cs
-To remove or add a merchant, edit the 
+####Merchants
+File: Models/Merchant.cs   
+Merchants and their IDs are held in a dictionary created in the Merchant.cs file.
 
-####Editing the barcode or Opening Balance
-Models/Card.cs  
-Card barcode is defined here as well as card opening balances.  The default openening balance a random number between 25 - 250.
+####Editing the Barcode or Opening Balance
+File: Models/Card.cs  
+Card barcode is defined here along with card opening balances.  The default card opening balance is a random number between 25 - 250.
