@@ -2,14 +2,15 @@
 
 BlueCats Wallet C# is a CLI for interacting with BC Wallet for iOS built on the BlueCats Library for C#.
 
-####Commands
-
-commands - lists commands  
-quit - quits wallet   
-reload - reload cards to opening balance   
-tender merchantID amount - tender card   
-cancel [transactionID] - cancel transaction   
-datasource - print data source   
+####Commands  
+Command | Action
+------|------  
+commands | lists commands
+quit     | quits wallet
+reload   | reload cards to opening balance
+tender merchantID amount | tender card   
+cancel [transactionID] | cancel transaction
+datasource | print data source
 
 ####Merchants
 File: Models/Merchant.cs   
