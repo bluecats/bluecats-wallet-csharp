@@ -1,6 +1,6 @@
 # bluecats-wallet-csharp
 
-BlueCats Wallet C# is a CLI for interacting with BC Wallet for iOS built on the BlueCats Library for C#.
+BlueCats Wallet C# is a CLI, built on BCLib-CSharp, for interacting with BC Wallet for iOS .
 
 ####Commands  
 Command | Action
