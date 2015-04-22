@@ -13,7 +13,7 @@ namespace BCWallet.Models
         public static Dictionary<string, Merchant> GenerateDemoMerchants()
         {
             var merchantForMerchantID = new Dictionary<string, Merchant>();
-            for (int index = 1; index < 4; index++)
+            for (int index = 1; index < 5; index++)
             {
                 var merchantID = string.Format("m{0}", index);
                 Merchant merchant = new Merchant

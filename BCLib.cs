@@ -37,7 +37,7 @@ namespace BlueCats
 
                 public static byte[] BuildWriteVersionCommand(byte version)
                 {
-                    return new byte[] { BCConstants.MESSAGE_TYPE_COMMAND, 0, BCConstants.CLASS_ID_BC, BCConstants.COMMAND_WRITE_VERSION, version };
+                    return new byte[] { BCConstants.MESSAGE_TYPE_COMMAND, 1, BCConstants.CLASS_ID_BC, BCConstants.COMMAND_WRITE_VERSION, version };
                 }
 
                 public static byte[] BuildReadBeaconLoudnessCommand()
@@ -47,7 +47,7 @@ namespace BlueCats
 
                 public static byte[] BuildWriteBeaconLoudnessCommand(byte beaconLodunessLevel)
                 {
-                    return new byte[] { BCConstants.MESSAGE_TYPE_COMMAND, 0, BCConstants.CLASS_ID_BC, BCConstants.COMMAND_WRITE_BEACON_LOUDNESS, beaconLodunessLevel };
+                    return new byte[] { BCConstants.MESSAGE_TYPE_COMMAND, 1, BCConstants.CLASS_ID_BC, BCConstants.COMMAND_WRITE_BEACON_LOUDNESS, beaconLodunessLevel };
                 }
 
                 public static byte[] BuildReadBeaconModeCommand()
@@ -57,7 +57,7 @@ namespace BlueCats
 
                 public static byte[] BuildWriteBeaconModeCommand(byte beaconModeID)
                 {
-                    return new byte[] { BCConstants.MESSAGE_TYPE_COMMAND, 0, BCConstants.CLASS_ID_BC, BCConstants.COMMAND_WRITE_BEACON_MODE, beaconModeID };
+                    return new byte[] { BCConstants.MESSAGE_TYPE_COMMAND, 1, BCConstants.CLASS_ID_BC, BCConstants.COMMAND_WRITE_BEACON_MODE, beaconModeID };
                 }
 
                 public static byte[] BuildReadProximityUUIDCommand()
@@ -81,7 +81,7 @@ namespace BlueCats
 
                 public static byte[] BuildWriteMajorCommand(ushort major)
                 {
-                    return new byte[] { BCConstants.MESSAGE_TYPE_COMMAND, 0, BCConstants.CLASS_ID_BC, BCConstants.COMMAND_WRITE_MAJOR, (byte)major, (byte)(major >> 8) };
+                    return new byte[] { BCConstants.MESSAGE_TYPE_COMMAND, 2, BCConstants.CLASS_ID_BC, BCConstants.COMMAND_WRITE_MAJOR, (byte)major, (byte)(major >> 8) };
                 }
 
                 public static byte[] BuildReadMinorCommand()
@@ -91,7 +91,7 @@ namespace BlueCats
 
                 public static byte[] BuildWriteMinorCommand(ushort minor)
                 {
-                    return new byte[] { BCConstants.MESSAGE_TYPE_COMMAND, 0, BCConstants.CLASS_ID_BC, BCConstants.COMMAND_WRITE_MINOR, (byte)minor, (byte)(minor >> 8) };
+                    return new byte[] { BCConstants.MESSAGE_TYPE_COMMAND, 2, BCConstants.CLASS_ID_BC, BCConstants.COMMAND_WRITE_MINOR, (byte)minor, (byte)(minor >> 8) };
                 }
 
                 public static byte[] BuildReadMeasuredPowerCommand()
@@ -122,7 +122,7 @@ namespace BlueCats
 
                 public static byte[] BuildWriteAdvertisingEnabledCommand(bool enabled)
                 {
-                    return new byte[] { BCConstants.MESSAGE_TYPE_COMMAND, 0, BCConstants.CLASS_ID_BC, BCConstants.COMMAND_WRITE_ADVERTISING_ENABLED, Convert.ToByte(enabled) };
+                    return new byte[] { BCConstants.MESSAGE_TYPE_COMMAND, 1, BCConstants.CLASS_ID_BC, BCConstants.COMMAND_WRITE_ADVERTISING_ENABLED, Convert.ToByte(enabled) };
                 }
 
                 public static byte[] BuildReadTargetSpeedCommand()
@@ -147,7 +147,7 @@ namespace BlueCats
 
                 public static byte[] BuildWriteEventsEnabledCommand(bool enabled)
                 {
-                    return new byte[] { BCConstants.MESSAGE_TYPE_COMMAND, 0, BCConstants.CLASS_ID_BC, BCConstants.COMMAND_WRITE_EVENTS_ENABLED, Convert.ToByte(enabled) };
+                    return new byte[] { BCConstants.MESSAGE_TYPE_COMMAND, 1, BCConstants.CLASS_ID_BC, BCConstants.COMMAND_WRITE_EVENTS_ENABLED, Convert.ToByte(enabled) };
                 }
 
                 public static byte[] BuildSendDataBlocksCommand(byte dataType, byte dataEncoding, byte repeatCount, byte[] data)
@@ -913,9 +913,10 @@ namespace BlueCats
 
             public UInt16 SendCommand(SerialPort port, byte[] cmd)
             {
+                if (port == null) return 1;
                 SetBusy(true);
                 port.Write(cmd, 0, cmd.Length);
-                return 0; // no error handling yet
+                return 0;
             }
 
         }

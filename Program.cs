@@ -6,6 +6,7 @@ using BlueCats.Serial.Commands;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
 
@@ -21,6 +22,13 @@ namespace BCWallet
 
         static void Main(string[] args)
         {
+            AppDomain.CurrentDomain.ProcessExit += (sender, eventArgs) =>
+            {
+                var command = BCCommandBuilder.BuildWriteEventsEnabledCommand(false);
+                _bcLib.SendCommand(_serialPort, command);
+                Debug.Print("Exit event executed");
+            };
+
             Console.WriteLine("BlueCats Wallet Version {0}", _version);
             Console.WriteLine("Enter 'commands' to see a list of commands.");
             Console.WriteLine("");
@@ -31,6 +39,7 @@ namespace BCWallet
             _bcLib.BleDataRequestEvent += _bcLib_BleDataRequestEvent;
             _bcLib.BleDataBlocksSentEvent += _bcLib_BleDataBlocksSentEvent;
             _bcLib.CancelDataBlocksCommandResponse += _bcLib_CancelDataBlocksCommandResponse;
+            _bcLib.WriteEventsEnabledCommandResponse += _bcLib_WriteEventsEnabledCommandResponse;
 
             Dictionary<string, Merchant> merchantForMerchantID = Merchant.GenerateDemoMerchants();
             List<Merchant> merchants = merchantForMerchantID.Select(kvp => kvp.Value).ToList();
@@ -48,6 +57,9 @@ namespace BCWallet
                 _serialPort = ConnectionManager.AttachToSerialPort(ports[0].Port);
                 _serialPort.DataReceived += SerialPort_DataReceivedHandler;
                 _isSerialPortAttached = true;
+
+                var command = BCCommandBuilder.BuildWriteEventsEnabledCommand(true);
+                _bcLib.SendCommand(_serialPort, command);
             }
 
             bool quit = false;
@@ -195,6 +207,18 @@ namespace BCWallet
             _serialPort = ConnectionManager.AttachToSerialPort(portName);
             _serialPort.DataReceived += SerialPort_DataReceivedHandler;
             _isSerialPortAttached = true;
+
+            _bcLib.WriteEventsEnabledCommandResponse += _bcLib_WriteEventsEnabledCommandResponse;
+            var command = BCCommandBuilder.BuildWriteEventsEnabledCommand(true);
+            _bcLib.SendCommand(_serialPort, command);
+        }
+
+        static void _bcLib_WriteEventsEnabledCommandResponse(object sender, BlueCats.Serial.Commands.Responses.EventsEnabledEventArgs e)
+        {
+            if (e.Enabled == false) 
+                Debug.WriteLine("Events enabled on beacon");
+            else
+                Debug.WriteLine("Failed to enable events on beacon");
         }
 
         static void ConnectionManager_SerialDeviceDisconnected(string portName)
