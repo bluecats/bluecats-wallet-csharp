@@ -1,37 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace BlueCats.Serial.Examples.Wallet
+﻿
+namespace BlueCats.Wallet
 {
-    public enum eWalletDataTypes : byte
-    {
-        CardBalanceRequest = 0,
-        CardRedmeptionRequest = 1,
-        TransactionNotification = 2
-    }
-
-    public enum eWalletErrors : byte
-    {
-        SerializationFailed = 1,
-        JSONInvalid,
-        RequestTypeMissing,
-        RequestTypeNotSupported,
-        MerchantIDMissing,
-        CardNotFound,
-        CardBarcodeMissing,
-        CardBalanceInsufficient,
-        TransactionIDMissing,
-        TransactionNotFound,
-        TransactionCanceled,
-        TransactionCompleted,
-        MerchantNotSupported,
-        SpecifiedAmountExceedsRemainingAmount
-    };
-
-    public static class WalletConstants
+    public static class Constants
     {
         public const string WALLET_DATA_TYPE_TINY_KEY = @"type";
         public const string WALLET_MERCHANT_ID_TINY_KEY = @"mid";

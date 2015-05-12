@@ -7,7 +7,7 @@
     <ProjectGuid>{FAE182BB-5C0B-4214-B764-0CBB2450A160}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>BCWallet</RootNamespace>
+    <RootNamespace>BlueCats.Wallet</RootNamespace>
     <AssemblyName>BCWallet</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
@@ -46,7 +46,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="WalletConstants.cs" />
+    <Compile Include="Constants.cs" />
+    <Compile Include="Enumerations.cs" />
     <Compile Include="Models\Merchant.cs" />
     <Compile Include="Models\DemoDataSource.cs" />
     <Compile Include="Models\Card.cs" />
@@ -55,10 +56,6 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Serialization\DictionarySerializer.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="App.config" />
-    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\bluecats-serial-csharp\BlueCats.Serial\BlueCats.Serial.csproj">

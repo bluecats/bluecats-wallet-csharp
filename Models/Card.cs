@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BlueCats.Serial.Examples.Wallet.Models
+namespace BlueCats.Wallet.Models
 {
     public class Card
     {

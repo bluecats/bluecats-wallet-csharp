@@ -1,14 +1,13 @@
-﻿using BlueCats.Serial.Events.EventArgs;
-using BlueCats.Serial.Examples.Wallet.Models;
-using BlueCats.Serial.Examples.Wallet.Serialization;
+﻿using BlueCats.Serial;
+using BlueCats.Serial.Events.EventArgs;
+using BlueCats.Wallet.Models;
+using BlueCats.Wallet.Serialization;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO.Ports;
 using System.Linq;
 
-namespace BlueCats.Serial.Examples.Wallet
+namespace BlueCats.Wallet
 {
     class Program
     {
@@ -181,7 +180,7 @@ namespace BlueCats.Serial.Examples.Wallet
             var requestInfo = DictionarySerializer.DeserializeFromByteArray(requestData);
             if (requestInfo != null)
             {
-                var dataTypeString = (string)requestInfo[WalletConstants.WALLET_DATA_TYPE_TINY_KEY];
+                var dataTypeString = (string)requestInfo[Constants.WALLET_DATA_TYPE_TINY_KEY];
                 if (!string.IsNullOrEmpty(dataTypeString))
                 {
 
@@ -216,8 +215,8 @@ namespace BlueCats.Serial.Examples.Wallet
 
         static void RespondToCardBalanceRequest(Dictionary<string, object> requestInfo)
         {
-            var barcode = (string)requestInfo[WalletConstants.WALLET_CARD_BARCODE_TINY_KEY];
-            var merchantID = (string)requestInfo[WalletConstants.WALLET_MERCHANT_ID_TINY_KEY];
+            var barcode = (string)requestInfo[Constants.WALLET_CARD_BARCODE_TINY_KEY];
+            var merchantID = (string)requestInfo[Constants.WALLET_MERCHANT_ID_TINY_KEY];
 
             var errors = new List<byte>();
             if (string.IsNullOrEmpty(barcode))
@@ -248,7 +247,7 @@ namespace BlueCats.Serial.Examples.Wallet
             }
 
             var responseInfo = new Dictionary<string, object>(requestInfo);
-            responseInfo[WalletConstants.WALLET_CARD_CURRENT_BALANCE_TINY_KEY] = card.CurrentBalance.ToString("0.00");
+            responseInfo[Constants.WALLET_CARD_CURRENT_BALANCE_TINY_KEY] = card.CurrentBalance.ToString("0.00");
             var responseData = DictionarySerializer.SerializeToByteArray(responseInfo);
             if (responseData != null)
             {
@@ -264,16 +263,16 @@ namespace BlueCats.Serial.Examples.Wallet
 
         static void RespondToCardRedemptionRequest(Dictionary<string, object> requestInfo)
         {
-            var barcode = (string)requestInfo[WalletConstants.WALLET_CARD_BARCODE_TINY_KEY];
-            var merchantID = (string)requestInfo[WalletConstants.WALLET_MERCHANT_ID_TINY_KEY];
-            var transactionID = (string)requestInfo[WalletConstants.WALLET_TRANSACTION_ID_TINY_KEY];
-            var deviceID = (string)requestInfo[WalletConstants.WALLET_DEVICE_ID_TINY_KEY];
+            var barcode = (string)requestInfo[Constants.WALLET_CARD_BARCODE_TINY_KEY];
+            var merchantID = (string)requestInfo[Constants.WALLET_MERCHANT_ID_TINY_KEY];
+            var transactionID = (string)requestInfo[Constants.WALLET_TRANSACTION_ID_TINY_KEY];
+            var deviceID = (string)requestInfo[Constants.WALLET_DEVICE_ID_TINY_KEY];
 
             decimal? amount = null;
             
-            if (requestInfo.ContainsKey(WalletConstants.WALLET_AMOUNT_TINY_KEY)) 
+            if (requestInfo.ContainsKey(Constants.WALLET_AMOUNT_TINY_KEY)) 
             {
-                var amountString = (string)requestInfo[WalletConstants.WALLET_AMOUNT_TINY_KEY];
+                var amountString = (string)requestInfo[Constants.WALLET_AMOUNT_TINY_KEY];
                 if (!String.IsNullOrEmpty(amountString))
                 {
                     amount = decimal.Parse(amountString);
@@ -373,8 +372,8 @@ namespace BlueCats.Serial.Examples.Wallet
             }
 
             var responseInfo = new Dictionary<string, object>(requestInfo);
-            responseInfo[WalletConstants.WALLET_CARD_CURRENT_BALANCE_TINY_KEY] = card.CurrentBalance.ToString("0.00");
-            responseInfo[WalletConstants.WALLET_TRANSACTION_REMAINING_AMOUNT_TINY_KEY] = transaction.RemainingAmount.ToString("0.00");
+            responseInfo[Constants.WALLET_CARD_CURRENT_BALANCE_TINY_KEY] = card.CurrentBalance.ToString("0.00");
+            responseInfo[Constants.WALLET_TRANSACTION_REMAINING_AMOUNT_TINY_KEY] = transaction.RemainingAmount.ToString("0.00");
 
             byte[] responseData = DictionarySerializer.SerializeToByteArray(responseInfo);
             if (responseData != null)
@@ -406,7 +405,7 @@ namespace BlueCats.Serial.Examples.Wallet
 
         static void RespondToBleDataRequestWithErrors(Dictionary<string, object> requestInfo, List<byte> errors)
         {
-            requestInfo[WalletConstants.WALLET_ERRORS_TINY_KEY] = errors;
+            requestInfo[Constants.WALLET_ERRORS_TINY_KEY] = errors;
             var responseData = DictionarySerializer.SerializeToByteArray(requestInfo);
             _beacon.RespondToBleDataRequest(responseData);
         }
@@ -414,10 +413,10 @@ namespace BlueCats.Serial.Examples.Wallet
         static void TenderCard(Transaction transaction)
         {
             Dictionary<string, object> transactionInfo = new Dictionary<string, object>();
-            transactionInfo[WalletConstants.WALLET_DATA_TYPE_TINY_KEY] = ((int)eWalletDataTypes.TransactionNotification).ToString();
-            transactionInfo[WalletConstants.WALLET_TRANSACTION_ID_TINY_KEY] = transaction.ID.ToString();
-            transactionInfo[WalletConstants.WALLET_MERCHANT_ID_TINY_KEY] = transaction.Merchant.ID.ToString();
-            transactionInfo[WalletConstants.WALLET_TRANSACTION_REMAINING_AMOUNT_TINY_KEY] = transaction.RemainingAmount.ToString("0.00");
+            transactionInfo[Constants.WALLET_DATA_TYPE_TINY_KEY] = ((int)eWalletDataTypes.TransactionNotification).ToString();
+            transactionInfo[Constants.WALLET_TRANSACTION_ID_TINY_KEY] = transaction.ID.ToString();
+            transactionInfo[Constants.WALLET_MERCHANT_ID_TINY_KEY] = transaction.Merchant.ID.ToString();
+            transactionInfo[Constants.WALLET_TRANSACTION_REMAINING_AMOUNT_TINY_KEY] = transaction.RemainingAmount.ToString("0.00");
 
             var data = DictionarySerializer.SerializeToByteArray(transactionInfo);
             if (data != null)
