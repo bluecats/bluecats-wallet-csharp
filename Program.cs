@@ -1,8 +1,6 @@
-﻿using BCWallet.Models;
-using BCWallet.Utilities.IO;
-using BCWallet.Utilities.Serialization;
-using BlueCats.Serial;
-using BlueCats.Serial.Commands;
+﻿using BlueCats.Serial.Events.EventArgs;
+using BlueCats.Serial.Examples.Wallet.Models;
+using BlueCats.Serial.Examples.Wallet.Serialization;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -10,36 +8,19 @@ using System.Diagnostics;
 using System.IO.Ports;
 using System.Linq;
 
-namespace BCWallet
+namespace BlueCats.Serial.Examples.Wallet
 {
     class Program
     {
         private readonly static string _version = "1.0.1";
-        private static BCLib _bcLib = null;
-        private static SerialPort _serialPort;
-        private static bool _isSerialPortAttached = false;
+        private static SerialBeacon _beacon = null;
         private static DemoDataSource _demoDataSource;
 
         static void Main(string[] args)
         {
-            AppDomain.CurrentDomain.ProcessExit += (sender, eventArgs) =>
-            {
-                var command = BCCommandBuilder.BuildWriteEventsEnabledCommand(false);
-                _bcLib.SendCommand(_serialPort, command);
-                Debug.Print("Exit event executed");
-            };
-
             Console.WriteLine("BlueCats Wallet Version {0}", _version);
             Console.WriteLine("Enter 'commands' to see a list of commands.");
             Console.WriteLine("");
-
-            _bcLib = new BCLib();
-            _bcLib.BleConnectedEvent += _bcLib_BleConnectedEvent;
-            _bcLib.BleDisconnectedEvent += _bcLib_BleDisconnectedEvent;
-            _bcLib.BleDataRequestEvent += _bcLib_BleDataRequestEvent;
-            _bcLib.BleDataBlocksSentEvent += _bcLib_BleDataBlocksSentEvent;
-            _bcLib.CancelDataBlocksCommandResponse += _bcLib_CancelDataBlocksCommandResponse;
-            _bcLib.WriteEventsEnabledCommandResponse += _bcLib_WriteEventsEnabledCommandResponse;
 
             Dictionary<string, Merchant> merchantForMerchantID = Merchant.GenerateDemoMerchants();
             List<Merchant> merchants = merchantForMerchantID.Select(kvp => kvp.Value).ToList();
@@ -48,19 +29,18 @@ namespace BCWallet
 
             Console.WriteLine(_demoDataSource.ToString());
 
-            ConnectionManager.ListenForSerialDeviceConnection(ConnectionManager_SerialDeviceConnected, -1, false);
-            ConnectionManager.ListenForSerialDeviceDisconnection(ConnectionManager_SerialDeviceDisconnected, -1, false);
-            var ports = ConnectionManager.DiscoverSerialPorts();
-            if (ports.Count > 0)
-            {
-                Console.WriteLine("Attaching to serial port {0}", ports[0].Port);
-                _serialPort = ConnectionManager.AttachToSerialPort(ports[0].Port);
-                _serialPort.DataReceived += SerialPort_DataReceivedHandler;
-                _isSerialPortAttached = true;
+            var beacons = SerialBeaconManager.GetSerialBeacons();
+            _beacon = beacons[0];
 
-                var command = BCCommandBuilder.BuildWriteEventsEnabledCommand(true);
-                _bcLib.SendCommand(_serialPort, command);
-            }
+            Console.WriteLine("Attaching to {0}", _beacon);
+            _beacon.Attach();
+
+            _beacon.WriteEventsEnabled(true);
+           
+            _beacon.BleConnectedEvent += _beacon_BleConnectedEvent;
+            _beacon.BleConnectedEvent += _beacon_BleDisconnectedEvent;
+            _beacon.BleDataRequestEvent += _beacon_BleDataRequestEvent;
+            _beacon.BleDataBlocksSentEvent += _beacon_BleDataBlocksSentEvent;
 
             bool quit = false;
             while (!quit)
@@ -98,9 +78,9 @@ namespace BCWallet
                 if (args.Length == 3)
                 {
                     bool tender = true;
-                    if (!_isSerialPortAttached)
+                    if (_beacon == null || !_beacon.IsAttached)
                     {
-                        Console.WriteLine("Serial port not attached, connect USB beacon.");
+                        Console.WriteLine("Serial beacon not attached.");
                         tender = false;
                     }
 
@@ -159,11 +139,6 @@ namespace BCWallet
             return quit;
         }
 
-        static void _bcLib_CancelDataBlocksCommandResponse(object sender, BlueCats.Serial.Commands.Responses.CommandResponseArgs e)
-        {
-            Console.WriteLine("Canceled data blocks.");
-        }
-
         private static void WriteWalletCommandsToConsole()
         {
             Console.WriteLine("Commands:");
@@ -181,63 +156,24 @@ namespace BCWallet
             Console.WriteLine("");
         }
 
-        static void _bcLib_BleDataBlocksSentEvent(object sender, EventArgs e)
+        static void _beacon_BleDataBlocksSentEvent(object sender, EventArgs e)
         {
             Console.WriteLine("Block data sent!");
         }
 
-        static void _bcLib_BleDisconnectedEvent(object sender, EventArgs e)
+        static void _beacon_BleDisconnectedEvent(object sender, EventArgs e)
         {
             Console.WriteLine("Device disconnected from USB beacon");
         }
 
-        static void _bcLib_BleConnectedEvent(object sender, EventArgs e)
+        static void _beacon_BleConnectedEvent(object sender, EventArgs e)
         {
             Console.WriteLine("Device connected from USB beacon");
         }
 
-        static void _bcLib_BleDataRequestEvent(object sender, BlueCats.Serial.Events.BleDataRequestEventArgs e)
+        static void _beacon_BleDataRequestEvent(object sender, BleDataRequestEventArgs e)
         {
             RespondToBleDataRequest(e.Data);
-        }
-
-        static void ConnectionManager_SerialDeviceConnected(string portName)
-        {
-            Console.WriteLine("Attaching to serial port {0}", portName);
-            _serialPort = ConnectionManager.AttachToSerialPort(portName);
-            _serialPort.DataReceived += SerialPort_DataReceivedHandler;
-            _isSerialPortAttached = true;
-
-            _bcLib.WriteEventsEnabledCommandResponse += _bcLib_WriteEventsEnabledCommandResponse;
-            var command = BCCommandBuilder.BuildWriteEventsEnabledCommand(true);
-            _bcLib.SendCommand(_serialPort, command);
-        }
-
-        static void _bcLib_WriteEventsEnabledCommandResponse(object sender, BlueCats.Serial.Commands.Responses.EventsEnabledEventArgs e)
-        {
-            if (e.Enabled == false) 
-                Debug.WriteLine("Events enabled on beacon");
-            else
-                Debug.WriteLine("Failed to enable events on beacon");
-        }
-
-        static void ConnectionManager_SerialDeviceDisconnected(string portName)
-        {
-            Console.WriteLine("Detaching from serial port {0}", portName);
-            ConnectionManager.DetachFromSerialPort(portName);
-            _serialPort.DataReceived -= SerialPort_DataReceivedHandler;
-            _isSerialPortAttached = false;
-        }
-
-        static void SerialPort_DataReceivedHandler(object sender, SerialDataReceivedEventArgs e)
-        {
-            SerialPort sp = (SerialPort)sender;
-            byte[] data = new byte[sp.BytesToRead];
-            sp.Read(data, 0, sp.BytesToRead);
-            foreach (byte ch in data)
-            {
-                _bcLib.Parse(ch);
-            }
         }
 
         static void RespondToBleDataRequest(byte[] requestData)
@@ -317,9 +253,7 @@ namespace BCWallet
             if (responseData != null)
             {
                 Console.WriteLine("Data request response: {0}.", JsonConvert.SerializeObject(responseInfo));
-
-                var command = BCCommandBuilder.BuildRespondToBLEDataRequestCommand(responseData);
-                _bcLib.SendCommand(_serialPort, command);
+                _beacon.RespondToBleDataRequest(responseData);
             }
             else
             {
@@ -445,17 +379,22 @@ namespace BCWallet
             byte[] responseData = DictionarySerializer.SerializeToByteArray(responseInfo);
             if (responseData != null)
             {
-                byte[] command = BCCommandBuilder.BuildCancelDataBlocksCommand();
-                _bcLib.SendCommand(_serialPort, command);
-
-                Console.WriteLine("Data request response: {0}.", JsonConvert.SerializeObject(responseInfo));
-
-                command = BCCommandBuilder.BuildRespondToBLEDataRequestCommand(responseData);
-                _bcLib.SendCommand(_serialPort, command);
-
-                if (Decimal.Compare(transaction.RemainingAmount, 0.0M) > 0)
+                try
                 {
-                    TenderCard(transaction);
+                    Console.WriteLine("Canceling data blocks.");
+                    _beacon.CancelDataBlocks();
+                    
+                    Console.WriteLine("Data request response: {0}.", JsonConvert.SerializeObject(responseInfo));
+                    _beacon.RespondToBleDataRequest(responseData);
+
+                    if (Decimal.Compare(transaction.RemainingAmount, 0.0M) > 0)
+                    {
+                        TenderCard(transaction);
+                    }
+                }
+                catch
+                {
+
                 }
             }
             else
@@ -469,8 +408,7 @@ namespace BCWallet
         {
             requestInfo[WalletConstants.WALLET_ERRORS_TINY_KEY] = errors;
             var responseData = DictionarySerializer.SerializeToByteArray(requestInfo);
-            var command = BCCommandBuilder.BuildRespondToBLEDataRequestCommand(responseData);
-            _bcLib.SendCommand(_serialPort, command);
+            _beacon.RespondToBleDataRequest(responseData);
         }
 
         static void TenderCard(Transaction transaction)
@@ -485,8 +423,7 @@ namespace BCWallet
             if (data != null)
             {
                 Console.WriteLine("Tendering loyal card for transaction {0}.", transaction.ID);
-                var command = BCCommandBuilder.BuildSendDataBlocksCommand(0, 0, 255, data);
-                _bcLib.SendCommand(_serialPort, command);
+                _beacon.SendDataBlocks(0, 0, 255, data);
             }
             else
             {
@@ -526,10 +463,9 @@ namespace BCWallet
 
         static void CancelDataBlocks()
         {
-            if (_isSerialPortAttached)
+            if (_beacon != null && _beacon.IsAttached)
             {
-                var command = BCCommandBuilder.BuildCancelDataBlocksCommand();
-                _bcLib.SendCommand(_serialPort, command);
+                _beacon.CancelDataBlocks();
             }
         }
     }

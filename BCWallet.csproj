@@ -46,7 +46,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BCLib.cs" />
     <Compile Include="WalletConstants.cs" />
     <Compile Include="Models\Merchant.cs" />
     <Compile Include="Models\DemoDataSource.cs" />
@@ -55,14 +54,17 @@
     <Compile Include="Models\Transaction.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Utilities\IO\SerialPortInfo.cs" />
-    <Compile Include="Utilities\IO\ConnectionManager.cs" />
-    <Compile Include="Utilities\Serialization\DictionarySerializer.cs" />
-    <Compile Include="Utilities\Threading\BackgroundPoller.cs" />
+    <Compile Include="Serialization\DictionarySerializer.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\bluecats-serial-csharp\BlueCats.Serial\BlueCats.Serial.csproj">
+      <Project>{81b9c8b1-dad5-467f-8f10-b1312bec30a4}</Project>
+      <Name>BlueCats.Serial</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BCWallet
+namespace BlueCats.Serial.Examples.Wallet
 {
     public enum eWalletDataTypes : byte
     {

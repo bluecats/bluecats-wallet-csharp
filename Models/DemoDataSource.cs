@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BCWallet.Models
+namespace BlueCats.Serial.Examples.Wallet.Models
 {
     public class DemoDataSource
     {

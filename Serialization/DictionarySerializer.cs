@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BCWallet.Utilities.Serialization
+namespace BlueCats.Serial.Examples.Wallet.Serialization
 {
     public static class DictionarySerializer
     {
