@@ -12,7 +12,7 @@ namespace BlueCats.Wallet
     class Program
     {
         private readonly static string _version = "1.0.1";
-        private static SerialBeacon _beacon = null;
+        private static IList<SerialBeacon> _attachedBeacons = new List<SerialBeacon>();
         private static DemoDataSource _demoDataSource;
 
         static void Main(string[] args)
@@ -29,17 +29,41 @@ namespace BlueCats.Wallet
             Console.WriteLine(_demoDataSource.ToString());
 
             var beacons = SerialBeaconManager.GetSerialBeacons();
-            _beacon = beacons[0];
+            foreach (SerialBeacon beacon in beacons)
+            {
+                try
+                {
+                    beacon.Attach();
 
-            Console.WriteLine("Attaching to {0}", _beacon);
-            _beacon.Attach();
+                    try
+                    {
+                        beacon.WriteEventsEnabled(true);
+                    }
+                    catch { } // enable events not supported in older fw
 
-            _beacon.WriteEventsEnabled(true);
-           
-            _beacon.BleConnectedEvent += _beacon_BleConnectedEvent;
-            _beacon.BleConnectedEvent += _beacon_BleDisconnectedEvent;
-            _beacon.BleDataRequestEvent += _beacon_BleDataRequestEvent;
-            _beacon.BleDataBlocksSentEvent += _beacon_BleDataBlocksSentEvent;
+
+                    beacon.BleConnectedEvent += _beacon_BleConnectedEvent;
+                    beacon.BleConnectedEvent += _beacon_BleDisconnectedEvent;
+                    beacon.BleDataRequestEvent += _beacon_BleDataRequestEvent;
+                    beacon.BleDataBlocksSentEvent += _beacon_BleDataBlocksSentEvent;
+
+                    Console.WriteLine("Attached to {0}", beacon);
+
+                    _attachedBeacons.Add(beacon);
+                }
+                catch
+                {
+                    beacon.BleConnectedEvent -= _beacon_BleConnectedEvent;
+                    beacon.BleConnectedEvent -= _beacon_BleDisconnectedEvent;
+                    beacon.BleDataRequestEvent -= _beacon_BleDataRequestEvent;
+                    beacon.BleDataBlocksSentEvent -= _beacon_BleDataBlocksSentEvent;
+
+                    if (beacon.IsAttached)
+                        beacon.Detach();
+
+                    Console.WriteLine("Failed to attach {0}", beacon);
+                }
+            }
 
             bool quit = false;
             while (!quit)
@@ -54,6 +78,18 @@ namespace BlueCats.Wallet
                     quit = RunWalletCommand(parts);
                 }
             }
+
+            foreach (SerialBeacon beacon in _attachedBeacons)
+            {
+                beacon.BleConnectedEvent -= _beacon_BleConnectedEvent;
+                beacon.BleConnectedEvent -= _beacon_BleDisconnectedEvent;
+                beacon.BleDataRequestEvent -= _beacon_BleDataRequestEvent;
+                beacon.BleDataBlocksSentEvent -= _beacon_BleDataBlocksSentEvent;
+
+                if (beacon.IsAttached)
+                    beacon.Detach();
+            }
+            _attachedBeacons.Clear();
         }
 
         private static bool RunWalletCommand(string[] args)
@@ -77,7 +113,7 @@ namespace BlueCats.Wallet
                 if (args.Length == 3)
                 {
                     bool tender = true;
-                    if (_beacon == null || !_beacon.IsAttached)
+                    if (_attachedBeacons.Count <= 0)
                     {
                         Console.WriteLine("Serial beacon not attached.");
                         tender = false;
@@ -172,10 +208,10 @@ namespace BlueCats.Wallet
 
         static void _beacon_BleDataRequestEvent(object sender, BleDataRequestEventArgs e)
         {
-            RespondToBleDataRequest(e.Data);
+            RespondToBleDataRequest((SerialBeacon)sender, e.Data);
         }
 
-        static void RespondToBleDataRequest(byte[] requestData)
+        static void RespondToBleDataRequest(SerialBeacon beacon, byte[] requestData)
         {
             var requestInfo = DictionarySerializer.DeserializeFromByteArray(requestData);
             if (requestInfo != null)
@@ -188,32 +224,32 @@ namespace BlueCats.Wallet
 
                     if (string.Compare(dataTypeString, ((byte)eWalletDataTypes.CardBalanceRequest).ToString(), true) == 0)
                     {
-                        RespondToCardBalanceRequest(requestInfo);
+                        RespondToCardBalanceRequest(beacon, requestInfo);
                     }
                     else if (string.Compare(dataTypeString, ((byte)eWalletDataTypes.CardRedmeptionRequest).ToString(), true) == 0)
                     {
-                        RespondToCardRedemptionRequest(requestInfo);
+                        RespondToCardRedemptionRequest(beacon, requestInfo);
                     }
                     else
                     {
                         Console.WriteLine("Ble data request type {0} not supported.", dataTypeString);
-                        RespondToBleDataRequestWithErrors(requestInfo, new List<byte> { (byte)eWalletErrors.RequestTypeNotSupported });
+                        RespondToBleDataRequestWithErrors(beacon, requestInfo, new List<byte> { (byte)eWalletErrors.RequestTypeNotSupported });
                     }
                 }
                 else
                 {
                     Console.WriteLine("Ble data request JSOn invlaid.");
-                    RespondToBleDataRequestWithErrors(requestInfo, new List<byte> { (byte)eWalletErrors.JSONInvalid });
+                    RespondToBleDataRequestWithErrors(beacon, requestInfo, new List<byte> { (byte)eWalletErrors.JSONInvalid });
                 }
             }
             else
             {
                 Console.WriteLine("Ble data request type missing.");
-                RespondToBleDataRequestWithErrors(requestInfo, new List<byte> { (byte)eWalletErrors.RequestTypeMissing });
+                RespondToBleDataRequestWithErrors(beacon, requestInfo, new List<byte> { (byte)eWalletErrors.RequestTypeMissing });
             }
         }
 
-        static void RespondToCardBalanceRequest(Dictionary<string, object> requestInfo)
+        static void RespondToCardBalanceRequest(SerialBeacon beacon, Dictionary<string, object> requestInfo)
         {
             var barcode = (string)requestInfo[Constants.WALLET_CARD_BARCODE_TINY_KEY];
             var merchantID = (string)requestInfo[Constants.WALLET_MERCHANT_ID_TINY_KEY];
@@ -233,7 +269,7 @@ namespace BlueCats.Wallet
 
             if (errors.Count > 0)
             {
-                RespondToBleDataRequestWithErrors(requestInfo, errors);
+                RespondToBleDataRequestWithErrors(beacon, requestInfo, errors);
                 return;
             }
 
@@ -242,7 +278,7 @@ namespace BlueCats.Wallet
             if (card == null)
             {
                 Console.WriteLine("Card {0} for merchant {1} not found.", barcode, merchantID);
-                RespondToBleDataRequestWithErrors(requestInfo, new List<byte> { (byte)eWalletErrors.CardNotFound });
+                RespondToBleDataRequestWithErrors(beacon, requestInfo, new List<byte> { (byte)eWalletErrors.CardNotFound });
                 return;
             }
 
@@ -252,16 +288,16 @@ namespace BlueCats.Wallet
             if (responseData != null)
             {
                 Console.WriteLine("Data request response: {0}.", JsonConvert.SerializeObject(responseInfo));
-                _beacon.RespondToBleDataRequest(responseData);
+                beacon.RespondToBleDataRequest(responseData);
             }
             else
             {
                 Console.WriteLine("Serialization failed for card balance request response.");
-                RespondToBleDataRequestWithErrors(requestInfo, new List<byte> { (byte)eWalletErrors.SerializationFailed });
+                RespondToBleDataRequestWithErrors(beacon, requestInfo, new List<byte> { (byte)eWalletErrors.SerializationFailed });
             }
         }
 
-        static void RespondToCardRedemptionRequest(Dictionary<string, object> requestInfo)
+        static void RespondToCardRedemptionRequest(SerialBeacon beacon, Dictionary<string, object> requestInfo)
         {
             var barcode = (string)requestInfo[Constants.WALLET_CARD_BARCODE_TINY_KEY];
             var merchantID = (string)requestInfo[Constants.WALLET_MERCHANT_ID_TINY_KEY];
@@ -300,7 +336,7 @@ namespace BlueCats.Wallet
 
             if (errors.Count > 0)
             {
-                RespondToBleDataRequestWithErrors(requestInfo, errors);
+                RespondToBleDataRequestWithErrors(beacon, requestInfo, errors);
                 return;
             }
 
@@ -341,7 +377,7 @@ namespace BlueCats.Wallet
 
             if (errors.Count > 0)
             {
-                RespondToBleDataRequestWithErrors(requestInfo, errors);
+                RespondToBleDataRequestWithErrors(beacon, requestInfo, errors);
                 return;
             }
 
@@ -381,10 +417,10 @@ namespace BlueCats.Wallet
                 try
                 {
                     Console.WriteLine("Canceling data blocks.");
-                    _beacon.CancelDataBlocks();
+                    beacon.CancelDataBlocks();
                     
                     Console.WriteLine("Data request response: {0}.", JsonConvert.SerializeObject(responseInfo));
-                    _beacon.RespondToBleDataRequest(responseData);
+                    beacon.RespondToBleDataRequest(responseData);
 
                     if (Decimal.Compare(transaction.RemainingAmount, 0.0M) > 0)
                     {
@@ -399,15 +435,15 @@ namespace BlueCats.Wallet
             else
             {
                 Console.WriteLine("Serialization failed for card redemption request response.");
-                RespondToBleDataRequestWithErrors(requestInfo, new List<byte> { (byte)eWalletErrors.SerializationFailed });
+                RespondToBleDataRequestWithErrors(beacon, requestInfo, new List<byte> { (byte)eWalletErrors.SerializationFailed });
             }
         }
 
-        static void RespondToBleDataRequestWithErrors(Dictionary<string, object> requestInfo, List<byte> errors)
+        static void RespondToBleDataRequestWithErrors(SerialBeacon beacon, Dictionary<string, object> requestInfo, List<byte> errors)
         {
             requestInfo[Constants.WALLET_ERRORS_TINY_KEY] = errors;
             var responseData = DictionarySerializer.SerializeToByteArray(requestInfo);
-            _beacon.RespondToBleDataRequest(responseData);
+            beacon.RespondToBleDataRequest(responseData);
         }
 
         static void TenderCard(Transaction transaction)
@@ -422,7 +458,9 @@ namespace BlueCats.Wallet
             if (data != null)
             {
                 Console.WriteLine("Tendering loyal card for transaction {0}.", transaction.ID);
-                _beacon.SendDataBlocks(0, 0, 255, data);
+                var beacon = _attachedBeacons.FirstOrDefault();
+                if (beacon != null)
+                    beacon.SendDataBlocks(0, 0, 255, data);
             }
             else
             {
@@ -462,9 +500,10 @@ namespace BlueCats.Wallet
 
         static void CancelDataBlocks()
         {
-            if (_beacon != null && _beacon.IsAttached)
+            foreach (SerialBeacon beacon in _attachedBeacons)
             {
-                _beacon.CancelDataBlocks();
+                if (beacon.IsAttached)
+                    beacon.CancelDataBlocks();
             }
         }
     }
