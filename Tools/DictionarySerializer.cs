@@ -1,8 +1,9 @@
-﻿using Newtonsoft.Json;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text;
 
-namespace BlueCats.Wallet.Serialization
+using Newtonsoft.Json;
+
+namespace BlueCats.Wallet.Tools
 {
     public static class DictionarySerializer
     {

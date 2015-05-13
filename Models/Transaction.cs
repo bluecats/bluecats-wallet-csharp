@@ -11,7 +11,7 @@ namespace BlueCats.Wallet.Models
         public decimal RemainingAmount { get; set; }
         public DateTime? CanceledAt { get; set; }
 
-        public List<TenderLineItem> TenderLineItems { get; set; }
+        public List<TenderLineItem> TenderLineItems { get; private set; }
 
         public bool IsCanceled
         {
@@ -25,7 +25,7 @@ namespace BlueCats.Wallet.Models
         {
             get
             {
-                return CanceledAt == null && Decimal.Compare(RemainingAmount, 0.00M) <= 0;
+                return (!CanceledAt.HasValue) && Decimal.Compare(RemainingAmount, 0.00M) <= 0;
             }
         }
 

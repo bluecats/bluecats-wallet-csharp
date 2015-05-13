@@ -1,68 +1,87 @@
 ﻿using BlueCats.Serial;
 using BlueCats.Serial.Events.EventArgs;
 using BlueCats.Wallet.Models;
-using BlueCats.Wallet.Serialization;
+
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
+using BlueCats.Wallet.Tools;
 
 namespace BlueCats.Wallet
 {
     class Program
     {
         private readonly static string _version = "1.0.1";
-        private static IList<SerialBeacon> _attachedBeacons = new List<SerialBeacon>();
+
         private static DemoDataSource _demoDataSource;
 
         static void Main(string[] args)
         {
             Console.WriteLine("BlueCats Wallet Version {0}", _version);
             Console.WriteLine("Enter 'commands' to see a list of commands.");
-            Console.WriteLine("");
+            Console.WriteLine();
 
-            Dictionary<string, Merchant> merchantForMerchantID = Merchant.GenerateDemoMerchants();
+            Dictionary<string, Merchant> merchantForMerchantID = Merchant.GenerateDemoMerchants(5);
             List<Merchant> merchants = merchantForMerchantID.Select(kvp => kvp.Value).ToList();
             var cards = Card.GenerateDemoCards(merchants);
             _demoDataSource = new DemoDataSource(merchantForMerchantID, cards);
 
             Console.WriteLine(_demoDataSource.ToString());
 
-            var beacons = SerialBeaconManager.GetSerialBeacons();
-            foreach (SerialBeacon beacon in beacons)
+            Console.WriteLine("Discovering connected beacons...");
+            var availableBeacons = SerialBeaconManager.DiscoverSerialBeacons();
+            SerialBeacon selectedBeacon = null;
+            while (!availableBeacons.Any())
             {
+                Console.WriteLine("No beacons detected. Connect a beacon and press enter.");
+                Console.ReadKey();
+                Console.WriteLine("Rescanning for connected serial beacons...");
+                availableBeacons = SerialBeaconManager.DiscoverSerialBeacons();
+            }
+
+            while (selectedBeacon == null)
+            {
+                Console.WriteLine("Select a beacon:");
+                for (var i = 0; i < availableBeacons.Count; i++)
+                    Console.WriteLine("{0}) {1}", i + 1, availableBeacons[i]);
                 try
                 {
-                    beacon.Attach();
-
-                    try
-                    {
-                        beacon.WriteEventsEnabled(true);
-                    }
-                    catch { } // enable events not supported in older fw
-
-
-                    beacon.BleConnectedEvent += _beacon_BleConnectedEvent;
-                    beacon.BleConnectedEvent += _beacon_BleDisconnectedEvent;
-                    beacon.BleDataRequestEvent += _beacon_BleDataRequestEvent;
-                    beacon.BleDataBlocksSentEvent += _beacon_BleDataBlocksSentEvent;
-
-                    Console.WriteLine("Attached to {0}", beacon);
-
-                    _attachedBeacons.Add(beacon);
+                    var choice = Convert.ToInt32(GetUserInput()) - 1;
+                    selectedBeacon = availableBeacons.ElementAt(choice);
                 }
                 catch
                 {
-                    beacon.BleConnectedEvent -= _beacon_BleConnectedEvent;
-                    beacon.BleConnectedEvent -= _beacon_BleDisconnectedEvent;
-                    beacon.BleDataRequestEvent -= _beacon_BleDataRequestEvent;
-                    beacon.BleDataBlocksSentEvent -= _beacon_BleDataBlocksSentEvent;
-
-                    if (beacon.IsAttached)
-                        beacon.Detach();
-
-                    Console.WriteLine("Failed to attach {0}", beacon);
+                    Console.WriteLine("Invalid choice, enter a beacon number." + Environment.NewLine);
                 }
+            }
+            Console.WriteLine();
+
+            try
+            {
+                selectedBeacon.Attach();
+
+                try
+                {
+                    selectedBeacon.WriteEventsEnabled(true);
+                }
+                catch { } // enable events not supported in older beacon fw
+
+                selectedBeacon.BleConnectedEvent += _beacon_BleConnectedEvent;
+                selectedBeacon.BleDisconnectedEvent += _beacon_BleDisconnectedEvent;
+                selectedBeacon.BleDataRequestEvent += _beacon_BleDataRequestEvent;
+                selectedBeacon.BleDataBlocksSentEvent += _beacon_BleDataBlocksSentEvent;
+
+                Console.WriteLine("Attached to {0}", selectedBeacon);
+            }
+            catch
+            {
+
+                if (selectedBeacon.IsAttached)
+                    selectedBeacon.Detach();
+
+                Console.WriteLine("Failed to attach {0}", selectedBeacon);
             }
 
             bool quit = false;
@@ -79,17 +98,28 @@ namespace BlueCats.Wallet
                 }
             }
 
-            foreach (SerialBeacon beacon in _attachedBeacons)
+            foreach (var beacon in SerialBeaconManager.GetAttachedBeacons())
             {
                 beacon.BleConnectedEvent -= _beacon_BleConnectedEvent;
-                beacon.BleConnectedEvent -= _beacon_BleDisconnectedEvent;
+                beacon.BleDisconnectedEvent -= _beacon_BleDisconnectedEvent;
                 beacon.BleDataRequestEvent -= _beacon_BleDataRequestEvent;
                 beacon.BleDataBlocksSentEvent -= _beacon_BleDataBlocksSentEvent;
 
                 if (beacon.IsAttached)
                     beacon.Detach();
             }
-            _attachedBeacons.Clear();
+        }
+        private static string GetUserInput(string prompt = "")
+        {
+            try
+            {
+                Console.Write("{0}> ", prompt);
+                return Console.ReadLine();
+            }
+            catch
+            {
+                return string.Empty;
+            }
         }
 
         private static bool RunWalletCommand(string[] args)
@@ -113,7 +143,7 @@ namespace BlueCats.Wallet
                 if (args.Length == 3)
                 {
                     bool tender = true;
-                    if (_attachedBeacons.Count <= 0)
+                    if (SerialBeaconManager.GetAttachedBeacons().Count <= 0)
                     {
                         Console.WriteLine("Serial beacon not attached.");
                         tender = false;
@@ -458,7 +488,7 @@ namespace BlueCats.Wallet
             if (data != null)
             {
                 Console.WriteLine("Tendering loyal card for transaction {0}.", transaction.ID);
-                var beacon = _attachedBeacons.FirstOrDefault();
+                var beacon = SerialBeaconManager.GetAttachedBeacons().FirstOrDefault();
                 if (beacon != null)
                     beacon.SendDataBlocks(0, 0, 255, data);
             }
@@ -500,7 +530,7 @@ namespace BlueCats.Wallet
 
         static void CancelDataBlocks()
         {
-            foreach (SerialBeacon beacon in _attachedBeacons)
+            foreach (var beacon in SerialBeaconManager.GetAttachedBeacons())
             {
                 if (beacon.IsAttached)
                     beacon.CancelDataBlocks();
