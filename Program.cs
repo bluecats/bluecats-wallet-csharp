@@ -20,19 +20,12 @@ namespace BlueCats.Wallet
         static void Main(string[] args)
         {
             Console.WriteLine("BlueCats Wallet Version {0}", _version);
-            Console.WriteLine("Enter 'commands' to see a list of commands.");
             Console.WriteLine();
 
-            Dictionary<string, Merchant> merchantForMerchantID = Merchant.GenerateDemoMerchants(5);
-            List<Merchant> merchants = merchantForMerchantID.Select(kvp => kvp.Value).ToList();
-            var cards = Card.GenerateDemoCards(merchants);
-            _demoDataSource = new DemoDataSource(merchantForMerchantID, cards);
 
-            Console.WriteLine(_demoDataSource.ToString());
-
+            // Discover serial beacons
             Console.WriteLine("Discovering connected beacons...");
             var availableBeacons = SerialBeaconManager.DiscoverSerialBeacons();
-            SerialBeacon selectedBeacon = null;
             while (!availableBeacons.Any())
             {
                 Console.WriteLine("No beacons detected. Connect a beacon and press enter.");
@@ -41,32 +34,41 @@ namespace BlueCats.Wallet
                 availableBeacons = SerialBeaconManager.DiscoverSerialBeacons();
             }
 
-            while (selectedBeacon == null)
-            {
-                Console.WriteLine("Select a beacon:");
-                for (var i = 0; i < availableBeacons.Count; i++)
-                    Console.WriteLine("{0}) {1}", i + 1, availableBeacons[i]);
-                try
-                {
-                    var choice = Convert.ToInt32(GetUserInput()) - 1;
-                    selectedBeacon = availableBeacons.ElementAt(choice);
-                }
-                catch
-                {
-                    Console.WriteLine("Invalid choice, enter a beacon number." + Environment.NewLine);
-                }
-            }
-            Console.WriteLine();
 
+            // Select a beacon
+            SerialBeacon selectedBeacon = null;
+            if (availableBeacons.Count == 1)
+            {
+                selectedBeacon = availableBeacons.First();
+            }
+            else
+            {
+                while (selectedBeacon == null)
+                {
+                    for (var i = 0; i < availableBeacons.Count; i++)
+                        Console.WriteLine("{0}) {1}", i + 1, availableBeacons[i]);
+                    Console.WriteLine();
+                    try
+                    {
+                        var choice = Convert.ToInt32(GetUserInput("Select a beacon")) - 1;
+                        selectedBeacon = availableBeacons.ElementAt(choice);
+                    }
+                    catch
+                    {
+                        Console.WriteLine("Invalid choice, enter a beacon number.");
+                    }
+                }
+                Console.WriteLine();
+            }
+
+
+
+            // Attach to beacon and start listening
             try
             {
                 selectedBeacon.Attach();
-
-                try
-                {
-                    selectedBeacon.WriteEventsEnabled(true);
-                }
-                catch { } // enable events not supported in older beacon fw
+                try { selectedBeacon.WriteEventsEnabled(true); }
+                catch {} // enable events not supported in older beacon fw
 
                 selectedBeacon.BleConnectedEvent += _beacon_BleConnectedEvent;
                 selectedBeacon.BleDisconnectedEvent += _beacon_BleDisconnectedEvent;
@@ -83,21 +85,33 @@ namespace BlueCats.Wallet
 
                 Console.WriteLine("Failed to attach {0}", selectedBeacon);
             }
+            Console.WriteLine();
 
-            bool quit = false;
+
+            // Display merchant info
+            var merchantForMerchantId = Merchant.GenerateDemoMerchants(5);
+            var merchants = merchantForMerchantId.Values.ToList();
+            var cards = Card.GenerateDemoCards(merchants);
+            _demoDataSource = new DemoDataSource(merchantForMerchantId, cards);
+            Console.WriteLine(_demoDataSource.ToString());
+
+
+            // Display command prompt
+            Console.WriteLine("Enter 'commands' to see a list of commands.");
+            Console.WriteLine();
+
+            var quit = false;
             while (!quit)
             {
-                string line = Console.ReadLine();
-
-                Console.WriteLine("");
-
-                string[] parts = line.Split(' ');
+                var line = Console.ReadLine();
+                if (line == null) continue;
+                Console.WriteLine();
+                var parts = line.Split(' ');
                 if (parts.Length > 0)
-                {
                     quit = RunWalletCommand(parts);
-                }
             }
 
+            // Cleanup
             foreach (var beacon in SerialBeaconManager.GetAttachedBeacons())
             {
                 beacon.BleConnectedEvent -= _beacon_BleConnectedEvent;
@@ -109,6 +123,7 @@ namespace BlueCats.Wallet
                     beacon.Detach();
             }
         }
+
         private static string GetUserInput(string prompt = "")
         {
             try
@@ -262,19 +277,19 @@ namespace BlueCats.Wallet
                     }
                     else
                     {
-                        Console.WriteLine("Ble data request type {0} not supported.", dataTypeString);
+                        Console.WriteLine("BLE data request type {0} not supported.", dataTypeString);
                         RespondToBleDataRequestWithErrors(beacon, requestInfo, new List<byte> { (byte)eWalletErrors.RequestTypeNotSupported });
                     }
                 }
                 else
                 {
-                    Console.WriteLine("Ble data request JSOn invlaid.");
+                    Console.WriteLine("BLE data request JSON invalid.");
                     RespondToBleDataRequestWithErrors(beacon, requestInfo, new List<byte> { (byte)eWalletErrors.JSONInvalid });
                 }
             }
             else
             {
-                Console.WriteLine("Ble data request type missing.");
+                Console.WriteLine("LE data request type missing.");
                 RespondToBleDataRequestWithErrors(beacon, requestInfo, new List<byte> { (byte)eWalletErrors.RequestTypeMissing });
             }
         }
