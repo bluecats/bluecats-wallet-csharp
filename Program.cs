@@ -5,6 +5,7 @@ using BlueCats.Wallet.Models;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 using BlueCats.Wallet.Tools;
@@ -13,12 +14,13 @@ namespace BlueCats.Wallet
 {
     class Program
     {
-        private readonly static string _version = "1.0.1";
+        private readonly static string _version = "1.0.2";
 
         private static DemoDataSource _demoDataSource;
 
         static void Main(string[] args)
         {
+            if (args.Contains("--debug")) SerialBeaconManager.SpoolDebugOutputToConsole();
             Console.WriteLine("BlueCats Wallet Version {0}", _version);
             Console.WriteLine();
 
@@ -67,13 +69,23 @@ namespace BlueCats.Wallet
             try
             {
                 selectedBeacon.Attach();
-                try { selectedBeacon.WriteEventsEnabled(true); }
-                catch {} // enable events not supported in older beacon fw
+
 
                 selectedBeacon.BleConnectedEvent += _beacon_BleConnectedEvent;
                 selectedBeacon.BleDisconnectedEvent += _beacon_BleDisconnectedEvent;
                 selectedBeacon.BleDataRequestEvent += _beacon_BleDataRequestEvent;
                 selectedBeacon.BleDataBlocksSentEvent += _beacon_BleDataBlocksSentEvent;
+
+                try
+                {
+                    selectedBeacon.WriteEventsEnabled(true);
+                }
+                catch (Exception ex)
+                {
+                    // enable events not supported in older beacon fw
+                    Debug.Print("* Error on command WriteEventsEnabled(true): {0}", 
+                        ex.GetBaseException().Message, null);
+                } 
 
                 Console.WriteLine("Attached to {0}", selectedBeacon);
             }
@@ -103,7 +115,7 @@ namespace BlueCats.Wallet
             var quit = false;
             while (!quit)
             {
-                var line = Console.ReadLine();
+                var line = GetUserInput(">");
                 if (line == null) continue;
                 Console.WriteLine();
                 var parts = line.Split(' ');
@@ -243,12 +255,12 @@ namespace BlueCats.Wallet
 
         static void _beacon_BleDisconnectedEvent(object sender, EventArgs e)
         {
-            Console.WriteLine("Device disconnected from USB beacon");
+            Console.WriteLine("Wireless Device disconnected from USB beacon");
         }
 
         static void _beacon_BleConnectedEvent(object sender, EventArgs e)
         {
-            Console.WriteLine("Device connected from USB beacon");
+            Console.WriteLine("Wireless Device connected to USB beacon");
         }
 
         static void _beacon_BleDataRequestEvent(object sender, BleDataRequestEventArgs e)
@@ -333,7 +345,14 @@ namespace BlueCats.Wallet
             if (responseData != null)
             {
                 Console.WriteLine("Data request response: {0}.", JsonConvert.SerializeObject(responseInfo));
-                beacon.RespondToBleDataRequest(responseData);
+                try
+                {
+                    beacon.RespondToBleDataRequest(responseData);
+                }
+                catch (Exception ex)
+                {
+                    Debug.Print("Failure when calling beacon.RespondToBleDataRequest(responseData) in Program: {0}", ex.GetBaseException().Message);
+                }
             }
             else
             {
