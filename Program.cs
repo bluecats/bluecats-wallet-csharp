@@ -14,7 +14,7 @@ namespace BlueCats.Wallet
 {
     class Program
     {
-        private readonly static string _version = "1.0.2";
+        private readonly static string _version = "1.0.1";
 
         private static DemoDataSource _demoDataSource;
 
