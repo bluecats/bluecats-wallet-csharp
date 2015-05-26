@@ -11,6 +11,7 @@ reload   | reload cards to opening balance
 tender merchantID amount | tender card   
 cancel [transactionID] | cancel transaction
 datasource | print data source
+firmware | print beacon's firmware version
 
 ####Merchants
 File: Models/Merchant.cs   
