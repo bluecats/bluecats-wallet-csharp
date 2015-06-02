@@ -15,7 +15,7 @@ namespace BlueCats.Wallet
 {
     class Program
     {
-        private readonly static string _version = "1.0.2";
+        private readonly static string _version = "1.0.3";
 
         private static DemoDataSource _demoDataSource;
         private static SerialBeacon _selectedBeacon;
@@ -148,32 +148,32 @@ namespace BlueCats.Wallet
 
         private static bool RunWalletCommand(string[] args)
         {
-            bool quit = false;
-            if (string.Compare(args[0], "quit", true) == 0)
+            var quit = false;
+            if (string.Equals(args[0], "quit", StringComparison.OrdinalIgnoreCase))
             {
                 quit = true;
                 Console.WriteLine("Quitting Wallet.");
             }
-            else if (string.Compare(args[0], "reload", true) == 0)
+            else if (string.Equals(args[0], "reload", StringComparison.OrdinalIgnoreCase))
             {
-                foreach (Card card in _demoDataSource.Cards)
+                foreach (var card in _demoDataSource.Cards)
                 {
                     card.CurrentBalance = card.OpeningBalance;
                 }
                 Console.WriteLine("Reloaded all cards.");
             }
-            else if (string.Compare(args[0], "tender", true) == 0)
+            else if (string.Equals(args[0], "tender", StringComparison.OrdinalIgnoreCase))
             {
                 if (args.Length == 3)
                 {
-                    bool tender = true;
+                    var tender = true;
                     if (SerialBeaconManager.GetAttachedBeacons().Count <= 0)
                     {
                         Console.WriteLine("Serial beacon not attached.");
                         tender = false;
                     }
 
-                    Merchant merchant = _demoDataSource.GetMerchant(args[1]);
+                    var merchant = _demoDataSource.GetMerchant(args[1]);
                     if (merchant == null)
                     {
                         Console.WriteLine("Merchant {0} not found.", args[1]);
@@ -187,25 +187,23 @@ namespace BlueCats.Wallet
                         tender = false;
                     }
 
-                    if (tender)
+                    if (!tender) return quit;
+                    var transaction = new Transaction
                     {
-                        Transaction transaction = new Transaction
-                        {
-                            TotalAmount = totalAmount,
-                            RemainingAmount = totalAmount,
-                            Merchant = merchant
-                        };
-                        _demoDataSource.AddTransaction(transaction);
+                        TotalAmount = totalAmount,
+                        RemainingAmount = totalAmount,
+                        Merchant = merchant
+                    };
+                    _demoDataSource.AddTransaction(transaction);
 
-                        TenderCard(transaction);
-                    }
+                    TenderCard(transaction);
                 }
                 else
                 {
                     Console.WriteLine("Usage: tender merchantID amount");
                 }
             }
-            else if (string.Compare(args[0], "cancel", true) == 0)
+            else if (string.Equals(args[0], "cancel", StringComparison.OrdinalIgnoreCase))
             {
                 if (args.Length <= 2)
                 {
@@ -217,30 +215,32 @@ namespace BlueCats.Wallet
                     Console.WriteLine("Usage: cancel [transactionID]");
                 }
             }
-            else if (string.Compare(args[0], "datasource", true) == 0)
+            else if (string.Equals(args[0], "datasource", StringComparison.OrdinalIgnoreCase))
             {
                 Console.WriteLine(_demoDataSource);
             }
-            else if (string.Compare(args[0], "firmware", true) == 0)
+            else if (string.Equals(args[0], "beacon", StringComparison.OrdinalIgnoreCase))
             {
                 try
                 {
                     if (_selectedBeacon != null)
                     {
+                        Console.WriteLine("-- {0} --", _selectedBeacon);
                         var fwVer = _selectedBeacon.ReadFirmwareVersion();
-                        Console.WriteLine("Serial Beacon firmware: v{0}", fwVer);
+                        Console.WriteLine("firmware: v{0}", fwVer);
+                        var btaddress = _selectedBeacon.ReadBluetoothAddress();
+                        Console.WriteLine("bluetooth address: {0}", btaddress);
                     }
                     else
                     {
-                        Console.WriteLine("Error: Beacon needs to be reset");
+                        Console.WriteLine("Error: Beacon needs to be reconnected");
                     }
                 }
                 catch (Exception ex)
                 {
                      Console.WriteLine("Serial beacon not responding");
-                     Debug.Print("Serial beacon not responding: {0}", ex.GetBaseException().Message);
+                     Debug.Print("Beacon not responding: {0}", ex.GetBaseException().Message);
                 }
-                
             }
             else if (!string.IsNullOrEmpty(args[0]))
             {
@@ -259,7 +259,7 @@ namespace BlueCats.Wallet
             Console.WriteLine(" + tender merchantID amount     tender card");
             Console.WriteLine(" + cancel [transactionID]       cancel transaction");
             Console.WriteLine(" + datasource                   print data source");
-            Console.WriteLine(" + firmware                     print beacon's firmware version");
+            Console.WriteLine(" + beacon                       print information about the beacon");
             Console.WriteLine("");
             Console.WriteLine("------------------------------------------------------");
             Console.WriteLine("");
