@@ -1,8 +1,8 @@
 # bluecats-wallet-csharp
 
-BlueCats Wallet C# is a CLI, built with [BlueCats.Serial C#](https://github.com/bluecats/bclib-csharp), for interacting with [BlueCats Wallet for iOS](https://github.com/bluecats/bluecats-wallet-ios).
+BlueCats Wallet C# is a CLI built with the [BlueCats.Serial C# libarary](https://github.com/bluecats/bluecats-serial-csharp) for interacting with [BlueCats Wallet for iOS](https://github.com/bluecats/bluecats-wallet-ios).
 
-**[Click Here](https://github.com/bluecats/bluecats-wallet-csharp/releases) To download app binary**
+**[Click here](https://github.com/bluecats/bluecats-wallet-csharp/releases) to download app binary**
 
 ####Commands  
 Command | Action
